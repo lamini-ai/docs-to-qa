@@ -1,4 +1,5 @@
 from llama import LlamaV2Runner
+from llama.program.util.run_ai import query_run_embedding
 
 import pandas as pd
 from tqdm import tqdm
@@ -14,7 +15,7 @@ class DocsToQA:
         self.embedded_docs = {} # { "doc_id": "doc_embedding" } 
         self.chunk_docs(docs_path)
 
-        self.question_prompt = "You are an inquisitive expert, whose job is to ask questions. You write factual questions or requests about a text."
+        self.question_prompt = "You are a focused assistant who only asks questions, no chit chat. Always ask questions as helpfully as possible, while being safe. You only ask factually coherent questions about the reference text. Do not repeat the request and do not express thanks, just start asking questions and only ask questions."
         self.answer_prompt = "You are an expert. You answer questions factually, grounded in given reference material."
 
         self.question_llm = LlamaV2Runner(system_prompt=self.question_prompt)
@@ -23,29 +24,42 @@ class DocsToQA:
         self.questions = {} # { "doc_id": "question" }
         self.answers = {} # { "doc_id": "answer" }
 
-    def chunk_docs(self, docs_path):
+    def get_chunks(self, text, char_chunk_size):
+        chunks = []
+        for i in range(0, len(text), char_chunk_size):
+            chunks.append(text[i:i+char_chunk_size])
+        return chunks
+
+    def chunk_docs(self, docs_path, char_chunk_size=5000):
         """Default chunk size is 1000"""
         df = pd.read_csv(docs_path)
-        for i, chunk in df.iterrows():
-            self.docs[i] = chunk["text"]
-            # embedding = query_run_embedding(chunk)
-            # self.embedded_docs[i] = embedding
+        for i, row in df.iterrows():
+            text = row["text"]
+            chunks = self.get_chunks(text, char_chunk_size)
+            for chunk in chunks:
+                self.docs[i] = chunk
+                # embedding = query_run_embedding(chunk)
+                # self.embedded_docs[i] = embedding
     
     def set_question_prompt(self, prompt):
         self.question_prompt = prompt
         self.question_llm = LlamaV2Runner(system_prompt=prompt)
         self.set_questions()
     
+    def run_set_questions(self):
+        self.run_questions(self.docs, self.question_llm, verbose=True)
+
     def run_questions(self,
                       docs,
                       question_llm,
-                      prompt_suffix="Write a question about the above:", 
+                      prompt_suffix="Write 5 questions about the above:", 
                       prompt_sep="\n",
                       verbose=False):
         questions = {}
         for docs_id, chunk in tqdm(docs.items()):
+            chunk = chunk[:1000]
             prompt = f"{chunk}{prompt_sep}{prompt_suffix}"
-            output = question_llm(chunk)
+            output = question_llm(prompt)
             questions[docs_id] = output
             if verbose:
                 print("=============PROMPT================")
@@ -120,6 +134,6 @@ def main():
     docs_path = "docs.csv"
     llm = DocsToQA(docs_path)
 
-    llm.prompt_engineer_questions(llm.question_prompt)
+    llm.run_set_questions()
 
 main()
