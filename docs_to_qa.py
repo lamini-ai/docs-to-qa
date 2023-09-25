@@ -39,17 +39,18 @@ class DocsToQA:
     def train(self):
         # Create dataframe with columns: "question", "answer"
         rows = []
-        for doc_id, qa in self.qa.items():
-            question, answer = qa
-            prompt = self._make_prompt(self.qa_system_prompt, question)
-            rows.append([prompt, answer])
+        for doc_id, qas in self.qa.items():
+            for qa in qas:
+                question, answer = qa
+                prompt = self._make_prompt(self.qa_system_prompt, question)
+                rows.append([prompt, answer])
 
-            # Include examples with doc ("retrieval") context
-            doc = self.docs[doc_id]
-            prompt_sep = "\n"
-            prompt_with_doc = f"{doc}{prompt_sep}{question}"
-            prompt_with_doc = self._make_prompt(self.qa_system_prompt, prompt_with_doc)
-            rows.append([prompt_with_doc, answer])
+                # Include examples with doc ("retrieval") context
+                doc = self.docs[doc_id]
+                prompt_sep = "\n"
+                prompt_with_doc = f"{doc}{prompt_sep}{question}"
+                prompt_with_doc = self._make_prompt(self.qa_system_prompt, prompt_with_doc)
+                rows.append([prompt_with_doc, answer])
 
         df = pd.DataFrame(rows, columns=["input", "output"])
         self.qa_llm.clear_data()
@@ -60,9 +61,6 @@ class DocsToQA:
         prompt = self._make_prompt(self.qa_system_prompt, user_input)
         output = self.qa_llm(prompt)
         return output
-
-    def load_qa_model(self, model_name):
-        self.qa_llm = BasicModelRunner(model_name=model_name)
 
     def _get_chunks(self, text, char_chunk_size):
         chunks = []
@@ -160,6 +158,7 @@ class DocsToQA:
         doc_ids_in_questions = [int(k) for k in self.questions.keys()]
         prompts_list = []
         questions_list = []
+        docs_ids_list = []
         for docs_id, chunk in self.docs.items():
             if docs_id not in doc_ids_in_questions:
                 continue
@@ -167,8 +166,10 @@ class DocsToQA:
             for question in question_list:
                 prompt = f"{chunk}{prompt_sep}{question}{prompt_sep}{prompt_suffix}" if prompt_suffix else f"{chunk}{prompt_sep}{question}"
                 prompt = self._make_prompt(self.answer_system_prompt, prompt, cue="Based on the reference material provided, this is the concise answer:")
+                
                 prompts_list.append(prompt)
                 questions_list.append(question)
+                docs_ids_list.append(docs_id)
         
         # Iterate through prompts in batches
         for i in range(0, len(prompts_list), batch_size):
@@ -180,6 +181,7 @@ class DocsToQA:
                 prompt = batch_prompts[i]
                 question = batch_questions[i]
                 answer = answers[i]['output']
+                docs_id = docs_ids_list[i]
 
                 if docs_id not in qa:
                     qa[docs_id] = []
@@ -201,9 +203,9 @@ class DocsToQA:
 
         self._save_questions(dirpath=dirpath)
 
-        filepath = f"{dirpath}/answers.json"
+        filepath = f"{dirpath}/qa.json"
         with open(filepath, 'w') as file:
-            json.dump(self.answers, file)
+            json.dump(self.qa, file)
         print(f"Saved answers to {filepath}")
         
         prompt_filepath = f"{dirpath}/answers_prompt.txt"
@@ -212,16 +214,18 @@ class DocsToQA:
         print(f"Saved answers prompt to {prompt_filepath}")
 
     def load_qa(self, dirpath):
-        answers_path = f"{dirpath}/answers.json"
+        qa_path = f"{dirpath}/qa.json"
         answers_prompt_path = f"{dirpath}/answers_prompt.txt"
         
-        self.answers = json.load(open(answers_path))
+        self.qa = json.load(open(qa_path))
+        self.qa = {int(k) if k.isdigit() else k: v for k, v in self.qa.items()}
         self.answer_system_prompt = open(answers_prompt_path).read()
         
         questions_path = f"{dirpath}/questions.json"
         questions_prompt_path = f"{dirpath}/questions_prompt.txt"
         
         self.questions = json.load(open(questions_path))
+        self.questions = {int(k) if k.isdigit() else k: v for k, v in self.questions.items()}
         self.question_system_prompt = open(questions_prompt_path).read()
      
     def prompt_engineer_answers(self, prompt=None, prompt_suffix="Answer the above question, based solely on the reference material above:", questions=None, save=False):
@@ -269,9 +273,9 @@ def run_prompt_engineer_answers():
 
 def main():
     llm = load_model()
-    llm.load_qa(dirpath="")
+    llm.load_qa(dirpath="outputs/qa_20230925_164847")
     llm.train()
 
 if __name__ == "__main__":
-    # main()
-    run_prompt_engineer_answers()
+    main()
+    # run_prompt_engineer_answers()
