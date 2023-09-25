@@ -272,5 +272,6 @@ def main():
     llm.load_qa(dirpath="")
     llm.train()
 
-# main()
-run_prompt_engineer_answers()
+if __name__ == "__main__":
+    # main()
+    run_prompt_engineer_answers()
