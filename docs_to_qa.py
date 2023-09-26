@@ -12,7 +12,7 @@ import json
 
 class DocsToQA:
 
-    def __init__(self, docs_path):
+    def __init__(self, docs_path, model_name="meta-llama/Llama-2-13b-chat-hf"):
         self.docs = {} # { "doc_id": "doc_text" }
         self.embedded_docs = {} # { "doc_id": "doc_embedding" } 
         self._chunk_docs(docs_path)
@@ -21,9 +21,9 @@ class DocsToQA:
         self.answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
         self.qa_system_prompt = "You are an assistant who answers questions and holds a conversation. You are helpful and friendly."
 
-        self.question_llm = BasicModelRunner(model_name="meta-llama/Llama-2-13b-chat-hf")
-        self.answer_llm = BasicModelRunner(model_name="meta-llama/Llama-2-13b-chat-hf")
-        self.qa_llm = BasicModelRunner(model_name="meta-llama/Llama-2-13b-chat-hf")
+        self.question_llm = BasicModelRunner(model_name=model_name)
+        self.answer_llm = BasicModelRunner(model_name=model_name)
+        self.qa_llm = BasicModelRunner(model_name=model_name)
         self.llama_prompt_template = """<s>[INST] <<SYS>>
 {system_prompt}
 <</SYS>>
@@ -256,8 +256,10 @@ def get_dataset():
     if not os.path.exists("docs.csv"):
         get_dataset()
 
-def load_model(docs_path="docs.csv"):
-    llm = DocsToQA(docs_path)
+def load_model(docs_path="docs.csv", model_name=None):
+    if model_name is None:
+        model_name = "meta-llama/Llama-2-13b-chat-hf"
+    llm = DocsToQA(docs_path, model_name=model_name)
     return llm
 
 def run_prompt_engineer_questions():
@@ -271,11 +273,15 @@ def run_prompt_engineer_answers():
     # Manually edit answers in answers file
     # Or TODO: create LLM pipeline to filter answers
 
-def main():
+def finetune_qa():
     llm = load_model()
     llm.load_qa(dirpath="outputs/qa_20230925_164847")
     llm.train()
 
+def run_finetuned():
+    # llm = load_model(model_name="4e5a41476ebd561bfd24e589f4a408626d586b4c9abe1dfc84547eadafaeb87a")
+    llm = BasicModelRunner(model_name="4e5a41476ebd561bfd24e589f4a408626d586b4c9abe1dfc84547eadafaeb87a")
+
 if __name__ == "__main__":
-    main()
+    run_finetuned()
     # run_prompt_engineer_answers()
