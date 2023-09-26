@@ -244,6 +244,9 @@ class DocsToQA:
 
 
 def get_dataset():
+    if not os.path.exists("docs.csv"):
+        get_dataset()
+
     hf_docs_path = "TaylorAI/pubmed_commercial"
     dataset = load_dataset(hf_docs_path, split="train", streaming=True)
     top_n = itertools.islice(dataset, 100)
@@ -252,9 +255,6 @@ def get_dataset():
         rows.append(i["text"])
     df = pd.DataFrame(rows, columns=["text"])
     df.to_csv("docs.csv", index=False)
-
-    if not os.path.exists("docs.csv"):
-        get_dataset()
 
 def load_model(docs_path="docs.csv", model_name=None):
     if model_name is None:
@@ -283,5 +283,5 @@ def run_finetuned():
     llm = BasicModelRunner(model_name="4e5a41476ebd561bfd24e589f4a408626d586b4c9abe1dfc84547eadafaeb87a")
 
 if __name__ == "__main__":
-    run_finetuned()
-    # run_prompt_engineer_answers()
+    # run_finetuned()
+    run_prompt_engineer_questions()
