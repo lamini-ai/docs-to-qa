@@ -69,13 +69,13 @@ class DocsToQA:
         return chunks
 
     def _chunk_docs(self, docs_path, char_chunk_size=5000):
-        """Default chunk size is 1000"""
+        """Default chunk size is 1000""" # 5000?
         df = pd.read_csv(docs_path)
         for i, row in df.iterrows():
             text = row["text"]
             chunks = self._get_chunks(text, char_chunk_size)
             for chunk in chunks:
-                self.docs[i] = chunk
+                self.docs[i] = chunk # only last chunk?
                 # embedding = query_run_embedding(chunk)
                 # self.embedded_docs[i] = embedding
 
@@ -243,9 +243,9 @@ class DocsToQA:
         return self.qa
 
 
-def get_dataset():
+def get_dataset(): # not used?
     if not os.path.exists("docs.csv"):
-        get_dataset()
+        get_dataset() # infinite loop?
 
     hf_docs_path = "TaylorAI/pubmed_commercial"
     dataset = load_dataset(hf_docs_path, split="train", streaming=True)
