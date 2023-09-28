@@ -8,7 +8,9 @@ import os
 import itertools
 import re
 import json
+from collections import defaultdict
 
+PROMPT_SEP = "\n"
 
 class DocsToQA:
 
@@ -21,6 +23,9 @@ class DocsToQA:
         self.answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
         self.qa_system_prompt = "You are an assistant who answers questions and holds a conversation. You are helpful and friendly."
 
+        self.question_prompt_suffix = "Write 5 questions about the above:"
+        self.answer_prompt_suffix = "Answer the above question, based solely on the reference material above:"
+
         self.question_llm = BasicModelRunner(model_name=model_name)
         self.answer_llm = BasicModelRunner(model_name=model_name)
         self.qa_llm = BasicModelRunner(model_name=model_name)
@@ -29,14 +34,19 @@ class DocsToQA:
 <</SYS>>
 
 {user_prompt} [/INST]"""
-        
+
         # self.question_llm = LlamaV2Runner(system_prompt=self.question_system_prompt)
         # self.answer_llm = LlamaV2Runner(system_prompt=self.answer_system_prompt)
 
-        self.questions = {} # { "doc_id": ["question1", "question2", ...], ... }
-        self.qa = {} # { "doc_id": ["question", "answer"], ... }
+        self.questions = defaultdict(list) # { "doc_id": ["question1", "question2", ...], ... }
+        self.qa = defaultdict(list) # { "doc_id": ["question", "answer"], ... }
 
-    def train(self):
+    def _add_doc_to_question(self, question, doc_id):
+        doc = self.docs[doc_id]
+        question_with_doc = f"{doc}{PROMPT_SEP}{question}"
+        return question_with_doc
+
+    def train(self, is_public=False): # add is_public
         # Create dataframe with columns: "question", "answer"
         rows = []
         for doc_id, qas in self.qa.items():
@@ -46,19 +56,22 @@ class DocsToQA:
                 rows.append([prompt, answer])
 
                 # Include examples with doc ("retrieval") context
-                doc = self.docs[doc_id]
-                prompt_sep = "\n"
-                prompt_with_doc = f"{doc}{prompt_sep}{question}"
-                prompt_with_doc = self._make_prompt(self.qa_system_prompt, prompt_with_doc)
+                question_with_doc = self._add_doc_to_question(question, doc_id)
+                prompt_with_doc = self._make_prompt(self.qa_system_prompt, question_with_doc)
                 rows.append([prompt_with_doc, answer])
 
         df = pd.DataFrame(rows, columns=["input", "output"])
         self.qa_llm.clear_data()
         self.qa_llm.load_data_from_dataframe(df)
-        self.qa_llm.train()
+        self.qa_llm.train(is_public=is_public)
 
-    def run(self, user_input):
+    def run(self, user_input, doc_id=None, verbose=False):
+        if doc_id is not None:
+            user_input = self._add_doc_to_question(user_input, doc_id)
         prompt = self._make_prompt(self.qa_system_prompt, user_input)
+        if verbose:
+            print("=============PROMPT================")
+            print(prompt)
         output = self.qa_llm(prompt)
         return output
 
@@ -71,11 +84,14 @@ class DocsToQA:
     def _chunk_docs(self, docs_path, char_chunk_size=5000):
         """Default chunk size is 1000""" # 5000?
         df = pd.read_csv(docs_path)
-        for i, row in df.iterrows():
+        doc_index = 0
+        for _, row in df.iterrows():
             text = row["text"]
             chunks = self._get_chunks(text, char_chunk_size)
-            for chunk in chunks:
-                self.docs[i] = chunk # only last chunk?
+            for chunk in chunks: # TODO: discard last chunk if too small?
+                self.docs[doc_index] = chunk
+                doc_index += 1
+                # self.docs[i] = chunk # only last chunk
                 # embedding = query_run_embedding(chunk)
                 # self.embedded_docs[i] = embedding
 
@@ -89,21 +105,24 @@ class DocsToQA:
         pattern = r'\d+\.\s*(.*)'
         matches = re.findall(pattern, text)
         return matches
-    
-    def _run_questions(self,
-                      prompt_suffix="Write 5 questions about the above:", 
-                      prompt_sep="\n",
-                      verbose=False):
-        questions = {}
-        for docs_id, chunk in tqdm(self.docs.items()):
-            prompt = f"{chunk}{prompt_sep}{prompt_suffix}" if prompt_suffix else chunk
+
+    def _run_questions(
+            self,
+            prompt_sep=PROMPT_SEP,
+            start_index=0,
+            save=False,
+            verbose=False,
+        ):
+        dirpath = None
+        for docs_id, chunk in tqdm(list(self.docs.items())[start_index:]):
+            prompt = f"{chunk}{prompt_sep}{self.question_prompt_suffix}" if self.question_prompt_suffix else chunk
             prompt = self._make_prompt(self.question_system_prompt, prompt, cue="1.")
             output = self.question_llm(prompt)
             try:
                 output = self._parse_enumerated_list(output)
             except:
                 output = output
-            questions[docs_id] = output
+            self.questions[docs_id] = output
             if verbose:
                 print("=============PROMPT================")
                 print(prompt)
@@ -113,16 +132,24 @@ class DocsToQA:
                 print("============GENERATED QUESTION================")
                 print(output)
                 print("=============================")
-        return questions
+            if save:
+                if dirpath:
+                    self._save_questions(dirpath=dirpath, verbose=verbose)
+                else:
+                    dirpath = self._save_questions(verbose=verbose)
+        if save:
+            print(f"Saved questions to {dirpath}/questions.json")
 
     def load_questions(self, dirpath):
         questions_path = f"{dirpath}/questions.json"
-        questions_prompt_path = f"{dirpath}/questions_prompt.txt"
+        questions_prompt_path = f"{dirpath}/questions_prompt.json"
         self.questions = json.load(open(questions_path))
         self.questions = {int(k) if k.isdigit() else k: v for k, v in self.questions.items()}
-        self.question_system_prompt = open(questions_prompt_path).read()
-    
-    def _save_questions(self, dirpath=None):
+        questions_prompt = json.load(open(questions_prompt_path))
+        self.question_system_prompt = questions_prompt['system_prompt']
+        self.question_prompt_suffix = questions_prompt['prompt_suffix']
+
+    def _save_questions(self, dirpath=None, verbose=True):
         if dirpath is None:
             ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
             dirpath = f"outputs/questions_{ts}"
@@ -131,30 +158,54 @@ class DocsToQA:
         filepath = f"{dirpath}/questions.json"
         with open(filepath, 'w') as file:
             json.dump(self.questions, file)
-        print(f"Saved questions to {filepath}")
+        if verbose:
+            print(f"Saved {len([question for question in self.questions.values()])} questions to {filepath}")
 
-        prompt_filepath = f"{dirpath}/questions_prompt.txt"
+        prompt_filepath = f"{dirpath}/questions_prompt.json"
         with open(prompt_filepath, 'w') as file:
-            file.write(self.question_system_prompt)
-        print(f"Saved question prompt to {prompt_filepath}")
-        
-    def prompt_engineer_questions(self, prompt=None, prompt_suffix=None, save=False):
-        if prompt:
-            self.question_system_prompt = prompt
-        
+            json.dump({'system_prompt': self.question_system_prompt, 'prompt_suffix': self.question_prompt_suffix}, file)
+        if verbose:
+            print(f"Saved question prompt to {prompt_filepath}")
+        return dirpath
+
+    def prompt_engineer_questions(
+            self,
+            system_prompt=None,
+            prompt_suffix=None,
+            start_index=0,
+            save=False,
+            verbose=True,
+        ):
+        if system_prompt is not None:
+            self.question_system_prompt = system_prompt
+        if prompt_suffix is not None:
+            self.question_prompt_suffix = prompt_suffix
+
         # question_llm = LlamaV2Runner(system_prompt=prompt)
-        self.questions = self._run_questions(prompt_suffix=prompt_suffix, verbose=True)
-        
-        if save:
-            self._save_questions()
+        self._run_questions(start_index=start_index, save=save, verbose=verbose)
+
         return self.questions
-    
-    def _run_answers(self,
-                    prompt_suffix=None,
-                    prompt_sep="\n",
-                    batch_size=5,
-                    verbose=False):
-        qa = {}
+
+    def _run_answers(
+            self,
+            prompt_sep=PROMPT_SEP,
+            start_index=0,
+            batch_size=1,
+            save=False,
+            verbose=False,
+        ):
+        if save:
+            ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+            dirpath = f"outputs/qa_{ts}"
+            os.makedirs(dirpath, exist_ok=True)
+
+            self._save_questions(dirpath=dirpath)
+
+            prompt_filepath = f"{dirpath}/answers_prompt.json"
+            with open(prompt_filepath, 'w') as file:
+                json.dump({'system_prompt': self.answer_system_prompt, 'prompt_suffix': self.answer_prompt_suffix}, file)
+            print(f"Saved answers prompt to {prompt_filepath}")
+
         doc_ids_in_questions = [int(k) for k in self.questions.keys()]
         prompts_list = []
         questions_list = []
@@ -164,28 +215,26 @@ class DocsToQA:
                 continue
             question_list = self.questions[docs_id]
             for question in question_list:
-                prompt = f"{chunk}{prompt_sep}{question}{prompt_sep}{prompt_suffix}" if prompt_suffix else f"{chunk}{prompt_sep}{question}"
-                prompt = self._make_prompt(self.answer_system_prompt, prompt, cue="Based on the reference material provided, this is the concise answer:")
-                
+                prompt = f"{chunk}{prompt_sep}{question}{prompt_sep}{self.answer_prompt_suffix}" if self.answer_prompt_suffix else f"{chunk}{prompt_sep}{question}"
+                prompt = self._make_prompt(self.answer_system_prompt, prompt)
+
                 prompts_list.append(prompt)
                 questions_list.append(question)
                 docs_ids_list.append(docs_id)
-        
-        # Iterate through prompts in batches
-        for i in range(0, len(prompts_list), batch_size):
-            batch_prompts = prompts_list[i:i+batch_size]
-            answers = self.answer_llm(batch_prompts)
-            
-            batch_questions = questions_list[i:i+batch_size]
-            for i in range(len(batch_questions)):
-                prompt = batch_prompts[i]
-                question = batch_questions[i]
-                answer = answers[i]['output']
-                docs_id = docs_ids_list[i]
 
-                if docs_id not in qa:
-                    qa[docs_id] = []
-                qa[docs_id].append([question, answer])
+        # Iterate through prompts in batches
+        for i in tqdm(range(start_index, len(prompts_list), batch_size)):
+            batch_prompts = prompts_list[i:i+batch_size]
+            batch_answers = self.answer_llm(batch_prompts)
+            batch_questions = questions_list[i:i+batch_size]
+            batch_docs_ids = docs_ids_list[i:i+batch_size]
+            for j in range(len(batch_questions)):
+                question = batch_questions[j]
+                prompt = batch_prompts[j]
+                answer = batch_answers[j]['output']
+                docs_id = batch_docs_ids[j]
+
+                self.qa[docs_id].append([question, answer])
                 if verbose:
                     print("=============PROMPT================")
                     print(prompt)
@@ -194,94 +243,221 @@ class DocsToQA:
                     print("=============GENERATED ANSWER================")
                     print(answer)
                     print("=============================")
-        return qa
-    
-    def _save_answers(self):
-        ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-        dirpath = f"outputs/qa_{ts}"
-        os.makedirs(dirpath, exist_ok=True)
-
-        self._save_questions(dirpath=dirpath)
-
-        filepath = f"{dirpath}/qa.json"
-        with open(filepath, 'w') as file:
-            json.dump(self.qa, file)
-        print(f"Saved answers to {filepath}")
-        
-        prompt_filepath = f"{dirpath}/answers_prompt.txt"
-        with open(prompt_filepath, 'w') as file:
-            file.write(self.answer_system_prompt)
-        print(f"Saved answers prompt to {prompt_filepath}")
+            if save:
+                filepath = f"{dirpath}/qa.json"
+                with open(filepath, 'w') as file:
+                    json.dump(self.qa, file)
+                if verbose:
+                    print(f"Saved {i + batch_size} answers to {filepath}")
+        if save:
+            print(f"Saved answers to {filepath}")
 
     def load_qa(self, dirpath):
         qa_path = f"{dirpath}/qa.json"
-        answers_prompt_path = f"{dirpath}/answers_prompt.txt"
-        
+        answers_prompt_path = f"{dirpath}/answers_prompt.json"
+
         self.qa = json.load(open(qa_path))
         self.qa = {int(k) if k.isdigit() else k: v for k, v in self.qa.items()}
-        self.answer_system_prompt = open(answers_prompt_path).read()
-        
+        answers_prompt = json.load(open(answers_prompt_path))
+        self.answer_system_prompt = answers_prompt['system_prompt']
+        self.answer_prompt_suffix = answers_prompt['prompt_suffix']
+
         questions_path = f"{dirpath}/questions.json"
-        questions_prompt_path = f"{dirpath}/questions_prompt.txt"
-        
+        questions_prompt_path = f"{dirpath}/questions_prompt.json"
+
         self.questions = json.load(open(questions_path))
         self.questions = {int(k) if k.isdigit() else k: v for k, v in self.questions.items()}
-        self.question_system_prompt = open(questions_prompt_path).read()
-     
-    def prompt_engineer_answers(self, prompt=None, prompt_suffix="Answer the above question, based solely on the reference material above:", questions=None, save=False):
-        if prompt is not None:
-            self.answer_system_prompt = prompt
+        questions_prompt = json.load(open(questions_prompt_path))
+        self.question_system_prompt = questions_prompt['system_prompt']
+        self.question_prompt_suffix = questions_prompt['prompt_suffix']
+
+    def prompt_engineer_answers(
+            self,
+            system_prompt=None,
+            prompt_suffix=None,
+            start_index=0,
+            questions=None,
+            save=False,
+            verbose=True,
+        ):
+        if system_prompt is not None:
+            self.answer_system_prompt = system_prompt
+        if prompt_suffix is not None:
+            self.answer_prompt_suffix = prompt_suffix
         if questions is None:
             assert self.questions, "You must set questions first, or pass questions in as {doc_id: question}"
             questions = self.questions
 
         # answer_llm = LlamaV2Runner(system_prompt=prompt)
-        self.qa = self._run_answers(prompt_suffix=prompt_suffix, verbose=True)
-        
-        if save:
-            self._save_answers()
+        self._run_answers(start_index=start_index, save=save, verbose=verbose)
+
         return self.qa
 
 
-def get_dataset(): # not used?
-    if not os.path.exists("docs.csv"):
-        get_dataset() # infinite loop?
-
-    hf_docs_path = "TaylorAI/pubmed_commercial"
+def get_dataset():
+    hf_docs_path = "hyperdemocracy/us-congress-bills"
     dataset = load_dataset(hf_docs_path, split="train", streaming=True)
     top_n = itertools.islice(dataset, 100)
     rows = []
-    for i in top_n:
+    for i in tqdm(top_n):
         rows.append(i["text"])
     df = pd.DataFrame(rows, columns=["text"])
-    df.to_csv("docs.csv", index=False)
+    df.to_csv("data/docs.csv", index=False)
 
-def load_model(docs_path="docs.csv", model_name=None):
+def load_model(docs_path=None, model_name=None):
+    if docs_path is None:
+        docs_path = "data/docs.csv"
     if model_name is None:
         model_name = "meta-llama/Llama-2-13b-chat-hf"
-    llm = DocsToQA(docs_path, model_name=model_name)
+    llm = DocsToQA(docs_path, model_name)
     return llm
 
-def run_prompt_engineer_questions():
-    llm = load_model()
-    llm.prompt_engineer_questions(save=True)
+def run_prompt_engineer_questions(
+        docs_path=None,
+        model_name=None,
+        system_prompt=None,
+        prompt_suffix=None,
+        start_index=0,
+        save=True,
+        verbose=True
+    ):
+    llm = load_model(docs_path, model_name)
+    llm.prompt_engineer_questions(
+        system_prompt=system_prompt,
+        prompt_suffix=prompt_suffix,
+        start_index=start_index,
+        save=save,
+        verbose=verbose,
+    )
 
-def run_prompt_engineer_answers():
-    llm = load_model()
-    llm.load_questions(dirpath="outputs/questions_20230924_230935")
-    llm.prompt_engineer_answers(save=True)
+def run_prompt_engineer_answers(
+        questions_dirpath,
+        docs_path=None,
+        model_name=None,
+        system_prompt=None,
+        prompt_suffix=None,
+        start_index=0,
+        save=True,
+        verbose=True
+    ):
+    llm = load_model(docs_path, model_name)
+    llm.load_questions(dirpath=questions_dirpath)
+    llm.prompt_engineer_answers(
+        system_prompt=system_prompt,
+        prompt_suffix=prompt_suffix,
+        start_index=start_index,
+        save=save,
+        verbose=verbose,
+    )
     # Manually edit answers in answers file
     # Or TODO: create LLM pipeline to filter answers
 
-def finetune_qa():
-    llm = load_model()
-    llm.load_qa(dirpath="outputs/qa_20230925_164847")
-    llm.train()
+def finetune_qa(qa_dirpath, docs_path=None, model_name=None, is_public=False):
+    llm = load_model(docs_path, model_name)
+    llm.load_qa(dirpath=qa_dirpath)
+    llm.train(is_public=is_public)
 
-def run_finetuned():
-    # llm = load_model(model_name="4e5a41476ebd561bfd24e589f4a408626d586b4c9abe1dfc84547eadafaeb87a")
-    llm = BasicModelRunner(model_name="4e5a41476ebd561bfd24e589f4a408626d586b4c9abe1dfc84547eadafaeb87a")
+def run_model(model_name, question, doc_id=None, verbose=False):
+    llm = load_model(model_name=model_name)
+    output = llm.run(question, doc_id, verbose=verbose)
+    if verbose:
+        print("============MODEL ANSWER================")
+        print(output)
+    return output
+
+def run_model_on_questions(model_name, questions_dirpath, verbose=False):
+    llm = load_model(model_name=model_name)
+    llm.load_questions(dirpath=questions_dirpath)
+    for doc_id in llm.questions:
+        for question in llm.qa[doc_id]:
+            output = llm.run(question, doc_id, verbose=verbose)
+            if verbose:
+                print("============MODEL ANSWER================")
+                print(output)
+
+def run_model_on_qa(model_name, qa_dirpath, verbose=False):
+    llm = load_model(model_name=model_name)
+    llm.load_qa(dirpath=qa_dirpath)
+    for doc_id in llm.qa:
+        for qa in llm.qa[doc_id]:
+            question, answer = qa[0], qa[1]
+            output = llm.run(question, doc_id, verbose=verbose)
+            if verbose:
+                print("============ACTUAL ANSWER=================")
+                print(answer)
+                print("============MODEL ANSWER================")
+                print(output)
 
 if __name__ == "__main__":
-    # run_finetuned()
-    run_prompt_engineer_questions()
+    # # Get dataset
+    # get_dataset()
+
+    # # Generate questions
+    docs_path = "data/test_docs.csv"
+    # docs_path = "data/docs.csv"
+    question_system_prompt = "You are a focused assistant who only asks questions, no chit chat. Always ask questions as helpfully as possible, while being safe. You only ask factually coherent questions about the reference text. Do not repeat the request and do not express thanks, just start asking questions and only ask questions."
+    question_prompt_suffix = "Write 5 questions about the above:"
+    start_index = 0
+    # save = False
+    save = True
+    # verbose = True
+    verbose = False
+    # run_prompt_engineer_questions(
+    #     docs_path=docs_path,
+    #     system_prompt=question_system_prompt,
+    #     prompt_suffix=question_prompt_suffix,
+    #     start_index = start_index,
+    #     save=save,
+    #     verbose=verbose,
+    # )
+
+    # # Generate answers
+    questions_dirpath = "outputs/questions_20230927_232532"
+    answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
+    answer_prompt_suffix = "Answer the above question, based solely on the reference material above:"
+    start_index = 0
+    # save = False
+    save = True
+    # verbose = True
+    verbose = False
+    run_prompt_engineer_answers(
+        questions_dirpath,
+        docs_path=docs_path,
+        system_prompt=answer_system_prompt,
+        prompt_suffix=answer_prompt_suffix,
+        start_index=start_index,
+        save=save,
+        verbose=verbose,
+    )
+
+    # # Finetune model
+    qa_dirpath = "outputs/qa_20230928_030040"
+    # base_model_name = "meta-llama/Llama-2-13b-chat-hf"
+    base_model_name = "meta-llama/Llama-2-13b-hf"
+    # finetune_qa(qa_dirpath, model_name=base_model_name, is_public=True)
+
+    # Evaluate model
+    model_name = "meta-llama/Llama-2-13b-chat-hf"
+    # model_name = "meta-llama/Llama-2-13b-hf"
+    # model_name = "16ed90809934a2a0a8a783ab20da60d66fedc67f56e0f2ab4cdb712f10a4f569" # finetuned Llama 2 13b chat
+    # model_name = "1807b1658bc3edb10de8f300b56c1f4cfc602a2a9f5c78422fe6b79097af50a2" # finetuned Llama 2 13b
+    question = "What is the date on which H. CON. RES. 1 was passed by the House of Representatives, according to the text?"
+    # question = "When did H. CON. RES. 1 pass?"
+    doc_id = 0
+    # doc_id = None
+    # run_model(
+    #     model_name=model_name,
+    #     question=question,
+    #     doc_id=doc_id,
+    #     verbose=True
+    # )
+    # run_model_on_questions(
+    #     model_name=model_name,
+    #     questions_dirpath=questions_dirpath,
+    #     verbose=True
+    # )
+    # run_model_on_qa(
+    #     model_name=model_name,
+    #     qa_dirpath=qa_dirpath,
+    #     verbose=True
+    # )
