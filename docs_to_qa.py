@@ -15,7 +15,12 @@ PROMPT_SEP = "\n"
 
 class DocsToQA:
 
-    def __init__(self, docs_path, qa_path=None, model_name="meta-llama/Llama-2-13b-chat-hf"):
+    def __init__(
+            self,
+            docs_path,
+            qa_path=None,
+            model_name="meta-llama/Llama-2-13b-chat-hf",
+        ):
         self.docs = {} # { "doc_id": "doc_text" }
         self.embedded_docs = {} # { "doc_id": "doc_embedding" } 
         self._chunk_docs(docs_path)
@@ -95,6 +100,7 @@ class DocsToQA:
             print("=============PROMPT================")
             print(prompt)
         output = self.qa_llm(prompt)
+        output = self._parse_llm_output(output)
         return output
 
     def _get_chunks(self, text, char_chunk_size):
@@ -108,7 +114,7 @@ class DocsToQA:
         df = pd.read_csv(docs_path)
         doc_index = 0
         for _, row in df.iterrows():
-            text = row["text"]
+            text = '\n'.join([f"{col}: {row[col]}" for col in df.columns])
             chunks = self._get_chunks(text, char_chunk_size)
             for chunk in chunks: # TODO: discard last chunk if too small?
                 self.docs[doc_index] = chunk
@@ -122,6 +128,11 @@ class DocsToQA:
         if cue:
             llama_prompt += cue
         return llama_prompt
+
+    def _parse_llm_output(self, output):
+        parsed_output = re.sub(r'(\W)(?=\1)', '', output) # remove repeated punctuation
+        parsed_output = re.sub(r'\b(\w+)( \1\b)+', r'\1', parsed_output) # remove repeated words
+        return parsed_output
 
     def _parse_enumerated_list(self, text):
         pattern = r'\d+\.\s*(.*)'
@@ -141,10 +152,13 @@ class DocsToQA:
                 prompt = self._get_qa_prompt() + prompt
             prompt = self._make_prompt(self.question_system_prompt, prompt, cue="1.")
             output = self.question_llm(prompt)
+            output = self._parse_llm_output(output)
             try:
+                if not output.startswith("1."):
+                    output = f"1. {output}"
                 output = self._parse_enumerated_list(output)
             except:
-                output = output
+                output = [output]
             self.questions[docs_id] = output
             if verbose:
                 print("=============PROMPT================")
@@ -256,6 +270,7 @@ class DocsToQA:
                 question = batch_questions[j]
                 prompt = batch_prompts[j]
                 answer = batch_answers[j]['output']
+                answer = self._parse_llm_output(answer)
                 docs_id = batch_docs_ids[j]
 
                 self.qa[docs_id].append([question, answer])
@@ -327,6 +342,16 @@ def save_docs():
         rows.append(i["text"])
     df = pd.DataFrame(rows, columns=["text"])
     df.to_csv("data/docs.csv", index=False)
+
+def save_metadocs():
+    hf_docs_path = "hyperdemocracy/us-congress-bills"
+    dataset = load_dataset(hf_docs_path, split="train", streaming=True)
+    top_n = itertools.islice(dataset, 100)
+    rows = []
+    for i in tqdm(top_n):
+        rows.append([i["id"], i["bill"]])
+    df = pd.DataFrame(rows, columns=["id", "bill"])
+    df.to_csv("data/metadocs.csv", index=False)
 
 def load_model(docs_path=None, qa_path=None, model_name=None):
     if docs_path is None:
@@ -417,11 +442,14 @@ def run_model_on_qa(model_name, qa_dirpath, verbose=False):
 if __name__ == "__main__":
     # # Get dataset
     # save_docs()
+    # save_metadocs()
 
-    # # Generate questions
-    docs_path = "data/test_docs.csv"
+    # Generate questions
+    # docs_path = "data/test_docs.csv"
     # docs_path = "data/docs.csv"
-    qa_path = "data/qa.csv"
+    docs_path = "data/test_metadocs.csv"
+    qa_path = None
+    # qa_path = "data/qa.csv"
     question_system_prompt = "You are a focused assistant who only asks questions, no chit chat. Always ask questions as helpfully as possible, while being safe. You only ask factually coherent questions about the reference text. Do not repeat the request and do not express thanks, just start asking questions and only ask questions."
     question_prompt_suffix = "Write 5 questions about the above:"
     start_index = 0
@@ -429,17 +457,17 @@ if __name__ == "__main__":
     # save = True
     verbose = True
     # verbose = False
-    run_prompt_engineer_questions(
-        docs_path=docs_path,
-        qa_path=qa_path,
-        system_prompt=question_system_prompt,
-        prompt_suffix=question_prompt_suffix,
-        start_index = start_index,
-        save=save,
-        verbose=verbose,
-    )
+    # run_prompt_engineer_questions(
+    #     docs_path=docs_path,
+    #     qa_path=qa_path,
+    #     system_prompt=question_system_prompt,
+    #     prompt_suffix=question_prompt_suffix,
+    #     start_index = start_index,
+    #     save=save,
+    #     verbose=verbose,
+    # )
 
-    # # Generate answers
+    # Generate answers
     questions_dirpath = "outputs/questions_20230927_232532"
     answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
     answer_prompt_suffix = "Answer the above question, based solely on the reference material above:"
@@ -448,18 +476,18 @@ if __name__ == "__main__":
     # save = True
     verbose = True
     # verbose = False
-    # run_prompt_engineer_answers(
-    #     questions_dirpath,
-    #     docs_path=docs_path,
-    #     qa_path=qa_path,
-    #     system_prompt=answer_system_prompt,
-    #     prompt_suffix=answer_prompt_suffix,
-    #     start_index=start_index,
-    #     save=save,
-    #     verbose=verbose,
-    # )
+    run_prompt_engineer_answers(
+        questions_dirpath,
+        docs_path=docs_path,
+        qa_path=qa_path,
+        system_prompt=answer_system_prompt,
+        prompt_suffix=answer_prompt_suffix,
+        start_index=start_index,
+        save=save,
+        verbose=verbose,
+    )
 
-    # # Finetune model
+    # Finetune model
     qa_dirpath = "outputs/qa_20230928_224709"
     # base_model_name = "meta-llama/Llama-2-13b-chat-hf"
     base_model_name = "meta-llama/Llama-2-13b-hf"
@@ -470,11 +498,12 @@ if __name__ == "__main__":
     # model_name = "meta-llama/Llama-2-13b-hf"
     # model_name = "16ed90809934a2a0a8a783ab20da60d66fedc67f56e0f2ab4cdb712f10a4f569" # finetuned Llama 2 13b chat
     # model_name = "1807b1658bc3edb10de8f300b56c1f4cfc602a2a9f5c78422fe6b79097af50a2" # finetuned Llama 2 13b
-    model_name = "a1ef30d0362fddc0b6ead81d3f1c5c6b1211baff81f0265a3cfcb65be188ced5" # finetuned Llama 2 13b
-    question = "What is the date on which H. CON. RES. 1 was passed by the House of Representatives, according to the text?"
-    # question = "When did H. CON. RES. 1 pass?"
-    doc_id = 0
-    # doc_id = None
+    # model_name = "a1ef30d0362fddc0b6ead81d3f1c5c6b1211baff81f0265a3cfcb65be188ced5" # finetuned Llama 2 13b
+    model_name = "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9" # finetuned Llama 2 13b chat
+    # question = "What is the date on which H. CON. RES. 1 was passed by the House of Representatives, according to the text?"
+    question = "When did H. CON. RES. 1 pass?"
+    # doc_id = 0
+    doc_id = None
     # run_model(
     #     model_name=model_name,
     #     question=question,
