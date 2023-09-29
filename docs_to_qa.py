@@ -9,15 +9,19 @@ import itertools
 import re
 import json
 from collections import defaultdict
+from random import sample
 
 PROMPT_SEP = "\n"
 
 class DocsToQA:
 
-    def __init__(self, docs_path, model_name="meta-llama/Llama-2-13b-chat-hf"):
+    def __init__(self, docs_path, qa_path=None, model_name="meta-llama/Llama-2-13b-chat-hf"):
         self.docs = {} # { "doc_id": "doc_text" }
         self.embedded_docs = {} # { "doc_id": "doc_embedding" } 
         self._chunk_docs(docs_path)
+        self.qa_examples = [] # [ ["question", "answer"], ... ]
+        if qa_path:
+            self._get_qa_examples(qa_path)
 
         self.question_system_prompt = "You are a focused assistant who only asks questions, no chit chat. Always ask questions as helpfully as possible, while being safe. You only ask factually coherent questions about the reference text. Do not repeat the request and do not express thanks, just start asking questions and only ask questions."
         self.answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
@@ -25,6 +29,8 @@ class DocsToQA:
 
         self.question_prompt_suffix = "Write 5 questions about the above:"
         self.answer_prompt_suffix = "Answer the above question, based solely on the reference material above:"
+
+        self.prompt_sep = PROMPT_SEP
 
         self.question_llm = BasicModelRunner(model_name=model_name)
         self.answer_llm = BasicModelRunner(model_name=model_name)
@@ -41,9 +47,25 @@ class DocsToQA:
         self.questions = defaultdict(list) # { "doc_id": ["question1", "question2", ...], ... }
         self.qa = defaultdict(list) # { "doc_id": ["question", "answer"], ... }
 
+    def _get_qa_examples(self, qa_path):
+        df = pd.read_csv(qa_path)
+        for _, row in df.iterrows():
+            question = row["Question"]
+            answer = row["Answer"]
+            self.qa_examples.append([question, answer])
+
+    def _get_qa_prompt(self, num_examples=3):
+        prompt_qa_examples = sample(self.qa_examples, min(num_examples, len(self.qa_examples)))
+        prompt = "Examples of some or all task items:\n"
+        for qa in prompt_qa_examples:
+            question, answer = qa
+            prompt += f"{question}{self.prompt_sep}{self.answer_prompt_suffix} [/INST] {answer}\n[INST] "
+        prompt += "Task:\n"
+        return prompt
+
     def _add_doc_to_question(self, question, doc_id):
         doc = self.docs[doc_id]
-        question_with_doc = f"{doc}{PROMPT_SEP}{question}"
+        question_with_doc = f"{doc}{self.prompt_sep}{question}"
         return question_with_doc
 
     def train(self, is_public=False): # add is_public
@@ -108,14 +130,15 @@ class DocsToQA:
 
     def _run_questions(
             self,
-            prompt_sep=PROMPT_SEP,
             start_index=0,
             save=False,
             verbose=False,
         ):
         dirpath = None
         for docs_id, chunk in tqdm(list(self.docs.items())[start_index:]):
-            prompt = f"{chunk}{prompt_sep}{self.question_prompt_suffix}" if self.question_prompt_suffix else chunk
+            prompt = f"{chunk}{self.prompt_sep}{self.question_prompt_suffix}" if self.question_prompt_suffix else chunk
+            if self.qa_examples:
+                prompt = self._get_qa_prompt() + prompt
             prompt = self._make_prompt(self.question_system_prompt, prompt, cue="1.")
             output = self.question_llm(prompt)
             try:
@@ -188,7 +211,6 @@ class DocsToQA:
 
     def _run_answers(
             self,
-            prompt_sep=PROMPT_SEP,
             start_index=0,
             batch_size=1,
             save=False,
@@ -215,7 +237,9 @@ class DocsToQA:
                 continue
             question_list = self.questions[docs_id]
             for question in question_list:
-                prompt = f"{chunk}{prompt_sep}{question}{prompt_sep}{self.answer_prompt_suffix}" if self.answer_prompt_suffix else f"{chunk}{prompt_sep}{question}"
+                prompt = f"{chunk}{self.prompt_sep}{question}{self.prompt_sep}{self.answer_prompt_suffix}" if self.answer_prompt_suffix else f"{chunk}{self.prompt_sep}{question}"
+                if self.qa_examples:
+                    prompt = self._get_qa_prompt() + prompt
                 prompt = self._make_prompt(self.answer_system_prompt, prompt)
 
                 prompts_list.append(prompt)
@@ -294,7 +318,7 @@ class DocsToQA:
         return self.qa
 
 
-def get_dataset():
+def save_docs():
     hf_docs_path = "hyperdemocracy/us-congress-bills"
     dataset = load_dataset(hf_docs_path, split="train", streaming=True)
     top_n = itertools.islice(dataset, 100)
@@ -304,16 +328,17 @@ def get_dataset():
     df = pd.DataFrame(rows, columns=["text"])
     df.to_csv("data/docs.csv", index=False)
 
-def load_model(docs_path=None, model_name=None):
+def load_model(docs_path=None, qa_path=None, model_name=None):
     if docs_path is None:
         docs_path = "data/docs.csv"
     if model_name is None:
         model_name = "meta-llama/Llama-2-13b-chat-hf"
-    llm = DocsToQA(docs_path, model_name)
+    llm = DocsToQA(docs_path, qa_path, model_name)
     return llm
 
 def run_prompt_engineer_questions(
         docs_path=None,
+        qa_path=None,
         model_name=None,
         system_prompt=None,
         prompt_suffix=None,
@@ -321,7 +346,7 @@ def run_prompt_engineer_questions(
         save=True,
         verbose=True
     ):
-    llm = load_model(docs_path, model_name)
+    llm = load_model(docs_path, qa_path, model_name)
     llm.prompt_engineer_questions(
         system_prompt=system_prompt,
         prompt_suffix=prompt_suffix,
@@ -333,6 +358,7 @@ def run_prompt_engineer_questions(
 def run_prompt_engineer_answers(
         questions_dirpath,
         docs_path=None,
+        qa_path=None,
         model_name=None,
         system_prompt=None,
         prompt_suffix=None,
@@ -340,7 +366,7 @@ def run_prompt_engineer_answers(
         save=True,
         verbose=True
     ):
-    llm = load_model(docs_path, model_name)
+    llm = load_model(docs_path, qa_path, model_name)
     llm.load_questions(dirpath=questions_dirpath)
     llm.prompt_engineer_answers(
         system_prompt=system_prompt,
@@ -353,7 +379,7 @@ def run_prompt_engineer_answers(
     # Or TODO: create LLM pipeline to filter answers
 
 def finetune_qa(qa_dirpath, docs_path=None, model_name=None, is_public=False):
-    llm = load_model(docs_path, model_name)
+    llm = load_model(docs_path, model_name=model_name)
     llm.load_qa(dirpath=qa_dirpath)
     llm.train(is_public=is_public)
 
@@ -390,57 +416,61 @@ def run_model_on_qa(model_name, qa_dirpath, verbose=False):
 
 if __name__ == "__main__":
     # # Get dataset
-    # get_dataset()
+    # save_docs()
 
     # # Generate questions
     docs_path = "data/test_docs.csv"
     # docs_path = "data/docs.csv"
+    qa_path = "data/qa.csv"
     question_system_prompt = "You are a focused assistant who only asks questions, no chit chat. Always ask questions as helpfully as possible, while being safe. You only ask factually coherent questions about the reference text. Do not repeat the request and do not express thanks, just start asking questions and only ask questions."
     question_prompt_suffix = "Write 5 questions about the above:"
     start_index = 0
-    # save = False
-    save = True
-    # verbose = True
-    verbose = False
-    # run_prompt_engineer_questions(
-    #     docs_path=docs_path,
-    #     system_prompt=question_system_prompt,
-    #     prompt_suffix=question_prompt_suffix,
-    #     start_index = start_index,
-    #     save=save,
-    #     verbose=verbose,
-    # )
+    save = False
+    # save = True
+    verbose = True
+    # verbose = False
+    run_prompt_engineer_questions(
+        docs_path=docs_path,
+        qa_path=qa_path,
+        system_prompt=question_system_prompt,
+        prompt_suffix=question_prompt_suffix,
+        start_index = start_index,
+        save=save,
+        verbose=verbose,
+    )
 
     # # Generate answers
     questions_dirpath = "outputs/questions_20230927_232532"
     answer_system_prompt = "You are an expert. You answer questions factually, grounded in given reference material. Answer concisely."
     answer_prompt_suffix = "Answer the above question, based solely on the reference material above:"
     start_index = 0
-    # save = False
-    save = True
-    # verbose = True
-    verbose = False
-    run_prompt_engineer_answers(
-        questions_dirpath,
-        docs_path=docs_path,
-        system_prompt=answer_system_prompt,
-        prompt_suffix=answer_prompt_suffix,
-        start_index=start_index,
-        save=save,
-        verbose=verbose,
-    )
+    save = False
+    # save = True
+    verbose = True
+    # verbose = False
+    # run_prompt_engineer_answers(
+    #     questions_dirpath,
+    #     docs_path=docs_path,
+    #     qa_path=qa_path,
+    #     system_prompt=answer_system_prompt,
+    #     prompt_suffix=answer_prompt_suffix,
+    #     start_index=start_index,
+    #     save=save,
+    #     verbose=verbose,
+    # )
 
     # # Finetune model
-    qa_dirpath = "outputs/qa_20230928_030040"
+    qa_dirpath = "outputs/qa_20230928_224709"
     # base_model_name = "meta-llama/Llama-2-13b-chat-hf"
     base_model_name = "meta-llama/Llama-2-13b-hf"
     # finetune_qa(qa_dirpath, model_name=base_model_name, is_public=True)
 
     # Evaluate model
-    model_name = "meta-llama/Llama-2-13b-chat-hf"
+    # model_name = "meta-llama/Llama-2-13b-chat-hf"
     # model_name = "meta-llama/Llama-2-13b-hf"
     # model_name = "16ed90809934a2a0a8a783ab20da60d66fedc67f56e0f2ab4cdb712f10a4f569" # finetuned Llama 2 13b chat
     # model_name = "1807b1658bc3edb10de8f300b56c1f4cfc602a2a9f5c78422fe6b79097af50a2" # finetuned Llama 2 13b
+    model_name = "a1ef30d0362fddc0b6ead81d3f1c5c6b1211baff81f0265a3cfcb65be188ced5" # finetuned Llama 2 13b
     question = "What is the date on which H. CON. RES. 1 was passed by the House of Representatives, according to the text?"
     # question = "When did H. CON. RES. 1 pass?"
     doc_id = 0
