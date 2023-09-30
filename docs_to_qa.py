@@ -21,10 +21,19 @@ class DocsToQA:
             qa_path=None,
             model_name="meta-llama/Llama-2-13b-chat-hf",
         ):
-        self.docs = {} # { "doc_id": "doc_text" }
-        self.embedded_docs = {} # { "doc_id": "doc_embedding" } 
+        """
+        DocsToQA is a class that generates questions and answers from a set of documents.
+        It can also finetune an LLM on the generated questions and answers.
+
+        Args:
+            docs_path (str): path to csv file containing documents
+            (Optional) qa_path (str): path to csv file containing questions and answers. Default = None
+            (Optional) model_name (str): name of LLM model to use. Default = "meta-llama/Llama-2-13b-chat-hf"
+        """
+        self.docs = {} # format = { "doc_id": "doc_text" }
+        self.embedded_docs = {} # format = { "doc_id": "doc_embedding" } 
         self._chunk_docs(docs_path)
-        self.qa_examples = [] # [ ["question", "answer"], ... ]
+        self.qa_examples = [] # format = [ ["question", "answer"], ... ]
         if qa_path:
             self._get_qa_examples(qa_path)
 
@@ -46,11 +55,8 @@ class DocsToQA:
 
 {user_prompt} [/INST]"""
 
-        # self.question_llm = LlamaV2Runner(system_prompt=self.question_system_prompt)
-        # self.answer_llm = LlamaV2Runner(system_prompt=self.answer_system_prompt)
-
-        self.questions = defaultdict(list) # { "doc_id": ["question1", "question2", ...], ... }
-        self.qa = defaultdict(list) # { "doc_id": ["question", "answer"], ... }
+        self.questions = defaultdict(list) # format = { "doc_id": ["question1", "question2", ...], ... }
+        self.qa = defaultdict(list) # format = { "doc_id": ["question", "answer"], ... }
 
     def _get_qa_examples(self, qa_path):
         df = pd.read_csv(qa_path)
@@ -73,7 +79,7 @@ class DocsToQA:
         question_with_doc = f"{doc}{self.prompt_sep}{question}"
         return question_with_doc
 
-    def train(self, is_public=False): # add is_public
+    def train(self, is_public=False):
         # Create dataframe with columns: "question", "answer"
         rows = []
         for doc_id, qas in self.qa.items():
@@ -91,6 +97,7 @@ class DocsToQA:
         self.qa_llm.clear_data()
         self.qa_llm.load_data_from_dataframe(df)
         self.qa_llm.train(is_public=is_public)
+        return self.qa_llm.model_name
 
     def run(self, user_input, doc_id=None, verbose=False):
         if doc_id is not None:
@@ -111,6 +118,7 @@ class DocsToQA:
 
     def _chunk_docs(self, docs_path, char_chunk_size=5000):
         """Default chunk size is 1000""" # 5000?
+        # TODO: add overlap in chunks
         df = pd.read_csv(docs_path)
         doc_index = 0
         for _, row in df.iterrows():
