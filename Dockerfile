@@ -17,4 +17,4 @@ RUN pip install -r requirements.txt
 COPY . /app/${PACKAGE_NAME}
 WORKDIR /app/${PACKAGE_NAME}
 
-ENTRYPOINT ["/app/docs_to_qa/scripts/start.sh"]
+ENTRYPOINT ["/app/docs_to_qa/scripts/start-gen-ques.sh"]
