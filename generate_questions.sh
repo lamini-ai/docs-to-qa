@@ -15,4 +15,4 @@ LOCAL_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd
 # build
 $LOCAL_DIRECTORY/scripts/build.sh
 
-docker run -v ~/.powerml:/root/.powerml -v $LOCAL_DIRECTORY/models:/app/docs_to_qa/models -it --rm --entrypoint /app/docs_to_qa/scripts/start-gen-ques.sh docs_to_qa:latest "$@"
+docker run -v ~/.powerml:/root/.powerml -v $LOCAL_DIRECTORY/data:/app/docs_to_qa/data -v $LOCAL_DIRECTORY/outputs:/app/docs_to_qa/outputs -it --rm --entrypoint /app/docs_to_qa/scripts/start-gen-ques.sh docs_to_qa:latest "$@"

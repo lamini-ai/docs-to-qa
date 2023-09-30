@@ -1,9 +1,9 @@
-from docs_to_qa import run_prompt_engineer_questions
+from llama import run_prompt_engineer_questions
 import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--docs_path", default="../data/docs_small.csv")
+    parser.add_argument("--docs_path", default="data/docs_small.csv")
     parser.add_argument("--qa_path", default=None)
     parser.add_argument("--question_system_prompt", default=None)
     parser.add_argument("--question_prompt_suffix", default=None)
@@ -31,3 +31,6 @@ def main():
     )
 
     print("Done. Questions generated.")
+
+if __name__ == '__main__':
+    main()
