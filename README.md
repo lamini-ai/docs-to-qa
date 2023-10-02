@@ -1,10 +1,35 @@
 # Docs to QA - Get a custom LLM to chat about your documents using [Lamini](https://lamini.ai) & Llama 2
 
 TLDR:
-1. Input a set of documents to generate questions from
-2. Generate answers for the questions using your documents
-3. Finetune an LLM to be able to answer questions related to your docs
+1. Input a set of raw documents, i.e. just strings, or a CSV, etc. We have an example with U.S. Bills data.
+2. Generate questions and answers about your documents, by just prompt-engineering an LLM
+3. Finetune a Q&A LLM for your docs on this data
 4. Run your custom LLM on new questions!
+
+This example runs on legislative data of U.S. Bills to create question-answer pairs related to these docs, without needing to manually label them yourself! Here's an example snippet:
+
+```
+ 118th CONGRESS 
+ 1st Session 
+ H. CON. RES. 1 
+ IN THE HOUSE OF REPRESENTATIVES 
+ CONCURRENT RESOLUTION 
+ Regarding consent to assemble outside the seat of government. 
+ That pursuant to clause 4, section 5, article I of the Constitution, during the One Hundred Eighteenth Congress the Speaker of the House and the Majority Leader of the Senate or their respective designees, acting jointly after consultation with the Minority Leader of the House and the Minority Leader of the Senate, may notify the Members of the House and the Senate, respectively, to assemble at a place outside the District of Columbia if, in their opinion, the public interest shall warrant it.     Passed the House of Representatives January 9, 2023. Cheryl L. Johnson, Clerk."
+```
+
+And from that, you can get a finetuned LLM that can intelligently answer questions about it -- customized to the types of questions you expect to be asked of it, and the kind of answer you'd expect it to give!
+```
+./run.sh
+--question "When did H. CON. RES. 1 pass?"
+--model_name "<model name>"
+```
+
+Here's the LLM's answer:
+```
+```
+
+Below, we share how to extend this library to your own data!
 
 ## 1. Generate Questions
 To generate the questions, run the following:
@@ -13,7 +38,7 @@ To generate the questions, run the following:
 ./generate_questions.sh
 ```
 
-This example runs on legislative data of U.S. Bills to create question-answer pairs related to these docs, without needing to manually label them yourself! All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run `generate_question.sh`, you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
+All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run `generate_question.sh`, you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
 
 ```
 ============SYSTEM PROMPT=================
