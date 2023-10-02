@@ -5,6 +5,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--docs_path", default="data/docs_small.csv")
     parser.add_argument("--qa_path", default=None)
+    parser.add_argument("--model_name", default=None)
     parser.add_argument("--question_system_prompt", default=None)
     parser.add_argument("--question_prompt_suffix", default=None)
     parser.add_argument("--start_index", default=0)
@@ -23,6 +24,7 @@ def main():
     questions = run_prompt_engineer_questions(
         docs_path=args["docs_path"],
         qa_path=args["qa_path"],
+        model_name=args["model_name"],
         system_prompt=args["question_system_prompt"],
         prompt_suffix=args["question_prompt_suffix"],
         start_index=args["start_index"],
