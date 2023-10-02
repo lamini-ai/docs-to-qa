@@ -27,7 +27,8 @@ Here is the LLM's answer:
 ```
 
 Below, we share how to use this library on your own data!
-TLDR:
+
+tl;dr:
 1. Input a set of raw documents, i.e. just strings, a CSV, etc. We have an example with [public U.S. Bills data](https://huggingface.co/datasets/hyperdemocracy/us-congress-bills).
 2. Generate questions & answers about your raw documents, by just prompt-engineering an LLM.
 3. Finetune a custom Q&A LLM on this data - now it can chat over your documents, run it on new questions!
@@ -40,7 +41,7 @@ To generate the questions, run the following:
 ./generate_questions.sh
 ```
 
-All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run `generate_question.sh`, you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
+All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run [`generate_questions.sh`](/generate_questions.sh), you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
 
 ```
 ============SYSTEM PROMPT=================
@@ -48,7 +49,7 @@ You are a focused assistant who only asks questions, no chit chat. Always ask qu
 ============GENERATED QUESTION================
 ['What is the title of the document being referred to in the text?', 'What is the section of the United States Code that the text references?', 'What is the purpose of the resolution mentioned in the text?', 'Who are the individuals authorized to notify members of the House and Senate to assemble outside the District of Columbia, according to the text?', 'What is the date on which the resolution was passed by the House of Representatives, according to the text?']
 ```
-By default, the questions generated are saved to the `outputs` folder.
+By default, the questions generated are saved to the [`outputs`](/outputs) folder.
 
 
 ### Your own prompt
@@ -65,13 +66,13 @@ You can prompt-engineer the question-generating LLM to better match the types of
 The `question_system_prompt` is the persona that you tell the LLM to assume when generating questions. The `question_prompt_suffix` can be optionally used as more context to the LLM after it reads your documents, just before it generates the questions.
 
 ### Your own data
-We've included a couple default datasets in the `data` folder: `data/docs_small.csv` with 20 examples and `data/docs.csv` with 1381 examples for you to experiment with. 
+We've included a couple default datasets in the [`data`](/data) folder: [`data/docs_small.csv`](data/docs_small.csv) with 20 examples and [`data/docs.csv`](data/docs.csv) with 1381 examples for you to experiment with. 
 
-You can also set your own dataset using the following:
+Set the dataset using the following. Try using your own!
 
 ```bash
 ./generate_questions.sh
---docs_path "<path to csv file>"
+--docs_path "data/docs_small.csv" # <path_to_csv_file>
 ```
 
 Of course, you can provide an arbitrary amount of text -- it will just take time for the LLM to process. We recommend starting small as you prompt-engineer, so iteration speed is fast. Then, expand that dataset, if you like what you see.
@@ -79,12 +80,14 @@ Of course, you can provide an arbitrary amount of text -- it will just take time
 ### Improve further with your own Q&A examples
 One way to give the LLM a flavor of the type of questions you'd like, beyond just prompt-engineering, is to provide examples of questions and answers. This can give a big boost in performance.
 
-You can pass in a CSV file here:
+You can pass in a CSV file here, with `Question` as a column name:
 
 ```bash
 ./generate_questions.sh
---qa_path "<path to csv file>"
+--qa_path "<path_to_csv_file>"
 ```
+
+It's `qa_path` because you can pass in question-answer pairs (with column names `Question` and `Answer`) or just rows of questions (column name `Question`).
 
 Now that you’ve generated questions, the LLM needs answers! You can apply a similar process to prompt-engineering answers to generate answers to your questions, and also providing additional Q&A data pairs for the LLM to model after.
 
@@ -93,21 +96,44 @@ Go ahead and generate answers to your questions with the below. Just pass in the
 
 ```bash
 ./generate_answers.sh
---q_dirpath "<path to saved questions folder>"
+--q_dirpath "outputs/questions_20231002_005304" # <path_to_saved_questions_folder>
 ```
 
-By default this will also save the answers generated to the `outputs` folder.
+Sample output:
+```
+...
+What are the three peaceful transfers of power mentioned in the reference text?
+Answer the above question, based solely on the reference material above: [/INST]
+============SYSTEM PROMPT=================
+You are an expert. You answer questions factually, grounded in given reference material. Answer concisely.
+=============GENERATED ANSWER================
+ Based solely on the reference material above, the three peaceful transfers of power mentioned are:
+1. The democratic Presidential elections in Taiwan that have yielded three peaceful transfers of power.
+2. The successive parliamentary elections in Taiwan.
+3. The numerous local elections in Taiwan.
+```
+
+By default, this will also save the answers generated to the `outputs` folder.
 
 ### Prompt-Engineer Answers
 Just like question generation, you can set your documents path, prompts, etc.:
 
 ```bash
 ./generate_answers.sh
---questions_dirpath "<path to questions folder>"
---docs_path "<path to csv file>"
---qa_path "<path to csv file>"
+--q_dirpath "<path_to_questions_folder>"
 --question_system_prompt "You are an expert."
---question_prompt_suffix "Write a question:"
+--question_prompt_suffix "Write an answer:"
+```
+
+Of course, you can run this with all arguments at once too:
+
+```bash
+./generate_answers.sh
+--questions_dirpath "<path_to_questions_folder>"
+--docs_path "<path_to_csv_file>"
+--qa_path "<path_to_csv_file>"
+--question_system_prompt "You are an expert."
+--question_prompt_suffix "Write answer:"
 ```
 
 ## 3. Finetune Your Question-Answer LLM
@@ -116,7 +142,12 @@ Now that you have question-answer pairs, it’s time to train! You can run the b
 
 ```bash
 ./train.sh
---qa_dirpath "<path to question and answers folder>"
+--qa_dirpath "<path_to_questions_and_answers_folder>"
+```
+
+Output:
+```
+Model ID: 0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9
 ```
 
 ### Customization
@@ -124,22 +155,23 @@ To specify which documents to use for training:
 
 ```bash
 ./train.sh
---qa_dirpath "<path to question and answers folder>"
---docs_path "<path to csv file>"
+--qa_dirpath "<path_to_questions_and_answers_folder>"
+--docs_path "<path_to_csv_file>"
 ```
 
 You can also set your model to be shareable with all your colleagues and friends, by passing in `is_public` as True:
 
 ```bash
 ./train.sh
---qa_dirpath "<path to question and answers folder>"
+--qa_dirpath "<path_to_questions_and_answers_folder>"
 --is_public True
 ```
-Lastly, you can run the model on a question with the below:
+
+Lastly, you can run the finetuned Q&A LLM on a new question:
 
 ```bash
 ./run.sh
 --question "When did H. CON. RES. 1 pass?"
---model_name "<model name>"
+--model_name "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9" # <model_name>
 ```
 
