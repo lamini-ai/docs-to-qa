@@ -138,25 +138,17 @@ Of course, you can run this with all arguments at once too:
 
 ## 3. Finetune Your Question-Answer LLM
 
-Now that you have question-answer pairs, it’s time to train! You can run the below:
+Now that you have question-answer pairs, it’s time to finetune (a form of LLM training)! You can run the below:
 
 ```bash
 ./train.sh
 --qa_dirpath "<path_to_questions_and_answers_folder>"
+--docs_path "<path_to_csv_file>" # default is data/docs.csv, so if it's your own data, be sure to change this!
 ```
 
 You will see a model ID printed and also added to your finetuning [`Train` dashboard](https://app.lamini.ai/train), where you can track the job's status:
 ```
 Model ID: 0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9
-```
-
-### Customization
-To specify which documents to use for training:
-
-```bash
-./train.sh
---qa_dirpath "<path_to_questions_and_answers_folder>"
---docs_path "<path_to_csv_file>"
 ```
 
 You can also set your model to be shareable with all your colleagues and friends, by passing in `is_public` as True:
