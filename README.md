@@ -1,12 +1,6 @@
 # Docs to QA - Get a custom LLM to chat about your documents using [Lamini](https://lamini.ai) & Llama 2
 
-TLDR:
-1. Input a set of raw documents, i.e. just strings, or a CSV, etc. We have an example with U.S. Bills data.
-2. Generate questions and answers about your documents, by just prompt-engineering an LLM
-3. Finetune a Q&A LLM for your docs on this data
-4. Run your custom LLM on new questions!
-
-This example runs on legislative data of U.S. Bills to create question-answer pairs related to those documents, without needing to manually label them yourself! You can customize this to your own dataset. 
+Here's a quick example we've included that creates a Q&A LLM that runs on raw legislative data (U.S. Bills), without needing to manually label them yourself. You can customize this to your own dataset, below.
 
 Here's an excerpt of what those documents in the data look like. They are not well-formatted, just raw data.
 ```
@@ -19,7 +13,7 @@ Here's an excerpt of what those documents in the data look like. They are not we
  That pursuant to clause 4, section 5, article I of the Constitution, during the One Hundred Eighteenth Congress the Speaker of the House and the Majority Leader of the Senate or their respective designees, acting jointly after consultation with the Minority Leader of the House and the Minority Leader of the Senate, may notify the Members of the House and the Senate, respectively, to assemble at a place outside the District of Columbia if, in their opinion, the public interest shall warrant it.     Passed the House of Representatives January 9, 2023. Cheryl L. Johnson, Clerk."
 ```
 
-From these, you can get a finetuned LLM that can intelligently answer questions about it -- customized to the types of questions you expect to be asked of it, and the kind of answer you'd expect it to give! Give it a spin on one that we finetuned for you on this data and share the model_name (just an ID to access the model):
+From these, you can get a finetuned LLM that can intelligently answer questions about it! The LLM is customized to the types of questions you expect to ask it, and the kinds of answers you expect it to give. Give it a spin on an LLM that we finetuned for you on this data:
 ```
 ./run.sh
 --question "When did H. CON. RES. 1 pass?"
@@ -33,6 +27,12 @@ Here is the LLM's answer:
 ```
 
 Below, we share how to use this library on your own data!
+TLDR:
+1. Input a set of raw documents, i.e. just strings, a CSV, etc. We have an example with U.S. Bills data
+2. Generate questions and answers about your documents, by just prompt-engineering an LLM
+3. Finetune a Q&A LLM for your docs on this data
+4. Run your custom LLM on new questions!
+
 
 ## 1. Generate Questions
 To generate the questions, run the following:
