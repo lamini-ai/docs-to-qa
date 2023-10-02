@@ -8,7 +8,7 @@ def parse_args():
     parser.add_argument("--question_system_prompt", default=None)
     parser.add_argument("--question_prompt_suffix", default=None)
     parser.add_argument("--start_index", default=0)
-    parser.add_argument("--save", default=False)
+    parser.add_argument("--save", default=True)
     parser.add_argument("--verbose", default=True)
 
     return vars(parser.parse_args())
