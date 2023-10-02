@@ -6,8 +6,9 @@ TLDR:
 3. Finetune a Q&A LLM for your docs on this data
 4. Run your custom LLM on new questions!
 
-This example runs on legislative data of U.S. Bills to create question-answer pairs related to these docs, without needing to manually label them yourself! Here's an example snippet:
+This example runs on legislative data of U.S. Bills to create question-answer pairs related to those documents, without needing to manually label them yourself! You can customize this to your own dataset. 
 
+Here's an excerpt of what those documents in the data look like. They are not well-formatted, just raw data.
 ```
  118th CONGRESS 
  1st Session 
@@ -18,18 +19,20 @@ This example runs on legislative data of U.S. Bills to create question-answer pa
  That pursuant to clause 4, section 5, article I of the Constitution, during the One Hundred Eighteenth Congress the Speaker of the House and the Majority Leader of the Senate or their respective designees, acting jointly after consultation with the Minority Leader of the House and the Minority Leader of the Senate, may notify the Members of the House and the Senate, respectively, to assemble at a place outside the District of Columbia if, in their opinion, the public interest shall warrant it.     Passed the House of Representatives January 9, 2023. Cheryl L. Johnson, Clerk."
 ```
 
-And from that, you can get a finetuned LLM that can intelligently answer questions about it -- customized to the types of questions you expect to be asked of it, and the kind of answer you'd expect it to give!
+From these, you can get a finetuned LLM that can intelligently answer questions about it -- customized to the types of questions you expect to be asked of it, and the kind of answer you'd expect it to give! Give it a spin on one that we finetuned for you on this data and share the model_name (just an ID to access the model):
 ```
 ./run.sh
 --question "When did H. CON. RES. 1 pass?"
---model_name "<model name>"
+--model_name "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9"
 ```
 
-Here's the LLM's answer:
+Here is the LLM's answer:
 ```
+============MODEL ANSWER================
+ Based solely on the reference material provided, H. CON. RES. 1 passed on January 9, 2023.
 ```
 
-Below, we share how to extend this library to your own data!
+Below, we share how to use this library on your own data!
 
 ## 1. Generate Questions
 To generate the questions, run the following:
