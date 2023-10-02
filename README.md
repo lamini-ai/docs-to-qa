@@ -49,7 +49,7 @@ You are a focused assistant who only asks questions, no chit chat. Always ask qu
 ============GENERATED QUESTION================
 ['What is the title of the document being referred to in the text?', 'What is the section of the United States Code that the text references?', 'What is the purpose of the resolution mentioned in the text?', 'Who are the individuals authorized to notify members of the House and Senate to assemble outside the District of Columbia, according to the text?', 'What is the date on which the resolution was passed by the House of Representatives, according to the text?']
 ```
-By default, the questions generated are saved to the [`outputs`](/outputs) folder.
+By default, the questions generated are saved to the [`outputs/`](/outputs) folder.
 
 
 ### Your own prompt
@@ -113,7 +113,7 @@ You are an expert. You answer questions factually, grounded in given reference m
 3. The numerous local elections in Taiwan.
 ```
 
-By default, this will also save the answers generated to the `outputs` folder.
+By default, this will also save the answers generated to the [`outputs/`](/outputs/) folder.
 
 ### Prompt-Engineer Answers
 Just like question generation, you can set your documents path, prompts, etc.:
