@@ -145,7 +145,7 @@ Now that you have question-answer pairs, it’s time to train! You can run the b
 --qa_dirpath "<path_to_questions_and_answers_folder>"
 ```
 
-Output:
+You will see a model ID printed and also added to your finetuning [`Train` dashboard](https://app.lamini.ai/train), where you can track the job's status:
 ```
 Model ID: 0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9
 ```
