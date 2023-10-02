@@ -3,7 +3,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--q_dirpath", default=None)
+    parser.add_argument("--questions_dirpath", default=None)
     parser.add_argument("--docs_path", default="data/docs.csv")
     parser.add_argument("--qa_path", default=None)
     parser.add_argument("--model_name", default=None)
@@ -16,12 +16,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-    if args["q_dirpath"] is None:
-        raise ValueError("q_dirpath must be provided.")
+    if args["questions_dirpath"] is None:
+        raise ValueError("questions_dirpath must be provided.")
 
     print("Generating answers for the questions provided...")
     answers = run_prompt_engineer_answers(
-        args["q_dirpath"],
+        args["questions_dirpath"],
         docs_path=args["docs_path"],
         qa_path=args["qa_path"],
         model_name=args["model_name"],

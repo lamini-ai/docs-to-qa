@@ -96,7 +96,7 @@ Go ahead and generate answers to your questions with the below. Just pass in the
 
 ```bash
 ./generate_answers.sh
---q_dirpath "outputs/questions_20231002_005304" # <path_to_saved_questions_folder>
+--questions_dirpath "outputs/questions_20231002_005304" # <path_to_saved_questions_folder>
 ```
 
 Sample output:
@@ -120,7 +120,7 @@ Just like question generation, you can set your documents path, prompts, etc.:
 
 ```bash
 ./generate_answers.sh
---q_dirpath "<path_to_questions_folder>"
+--questions_dirpath "<path_to_questions_folder>"
 --question_system_prompt "You are an expert."
 --question_prompt_suffix "Write an answer:"
 ```
