@@ -1,6 +1,6 @@
 # Docs to QA - Get a custom LLM to chat about your documents using [Lamini](https://lamini.ai) & Llama 2
 
-Here's a quick example we've included that creates a Q&A LLM that runs on raw legislative data (U.S. Bills), without needing to manually label them yourself. You can customize this to your own dataset, below.
+Here's a quick example we've included that creates a Q&A LLM that runs on raw [legislative data (U.S. Bills)](https://huggingface.co/datasets/hyperdemocracy/us-congress-bills), without needing to manually label them yourself. You can customize this to your own dataset, below.
 
 Here's an excerpt of what those documents in the data look like. They are not well-formatted, just raw data.
 ```
@@ -28,11 +28,10 @@ Here is the LLM's answer:
 
 Below, we share how to use this library on your own data!
 TLDR:
-1. Input a set of raw documents, i.e. just strings, a CSV, etc. We have an example with U.S. Bills data
-2. Generate questions and answers about your documents, by just prompt-engineering an LLM
-3. Finetune a Q&A LLM for your docs on this data
-4. Run your custom LLM on new questions!
-
+1. Input a set of raw documents, i.e. just strings, a CSV, etc. We have an example with [public U.S. Bills data](https://huggingface.co/datasets/hyperdemocracy/us-congress-bills).
+2. Generate questions & answers about your raw documents, by just prompt-engineering an LLM.
+3. Finetune a custom Q&A LLM on this data - now it can chat over your documents, run it on new questions!
+4. Hook your custom LLM up to your own application with a simple [REST API](https://lamini-ai.github.io/API/completions/).
 
 ## 1. Generate Questions
 To generate the questions, run the following:
@@ -60,7 +59,7 @@ By default, the questions generated are saved to the `outputs` folder. Read on t
 You can also set your own dataset using the following:
 
 ```bash
-./generate-questions.sh
+./generate_questions.sh
 --docs_path "<path to csv file>"
 ```
 
@@ -68,7 +67,7 @@ You can also set your own dataset using the following:
 Have a specific style you’d like the LLM to follow? You can prompt-engineer the LLM and override the default prompts, as follows:
 
 ```bash
-./generate-questions.sh
+./generate_questions.sh
 --question_system_prompt “You are an expert.”
 --question_prompt_suffix “Write a question:”
 ```
@@ -81,7 +80,7 @@ One way to give the LLM a flavor of the type of questions you'd like, beyond jus
 You can pass in a CSV file here:
 
 ```bash
-./generate-questions.sh
+./generate_questions.sh
 --qa_path "<path to csv file>"
 ```
 
@@ -91,7 +90,7 @@ Now that you’ve generated questions, the LLM needs answers! You can apply a si
 Go ahead and generate answers to your questions with the below. Just pass in the questions folder you would like to read from (this folder includes both the generated questions you had previously and the question prompt you used to get it). Of course, you can also edit the questions directly if you have other methods of improving them.
 
 ```bash
-./generate-answers.sh
+./generate_answers.sh
 --q_dirpath “<path to saved questions folder>”
 ```
 
@@ -101,7 +100,7 @@ By default this will also save the answers generated to the `outputs` folder.
 Just like question generation, you can set your documents path, prompts, etc.:
 
 ```bash
-./generate-answers.sh
+./generate_answers.sh
 --questions_dirpath “<path to questions folder>”
 --docs_path "<path to csv file>"
 --qa_path "<path to csv file>"
