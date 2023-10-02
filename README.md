@@ -37,7 +37,7 @@ You can also set your own dataset using the following:
 ```
 
 ### Your own prompt
-Have a specific style you’d like the LLM to follow? You can prompt the model using the below:
+Have a specific style you’d like the LLM to follow? You can prompt-engineer the LLM and override the default prompts, as follows:
 
 ```bash
 ./generate-questions.sh
