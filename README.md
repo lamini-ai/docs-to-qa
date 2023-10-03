@@ -16,7 +16,7 @@ Here's an excerpt of what those documents in the data look like. They are not we
 From these, you can get a finetuned LLM that can intelligently answer questions about it! The LLM is customized to the types of questions you expect to ask it, and the kinds of answers you expect it to give. Give it a spin on an LLM that we finetuned for you on this data:
 ```
 ./run.sh
---question "When did H. CON. RES. 1 pass?"
+--question "When did H. CON. RES. 1 pass?" \
 --model_name "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9"
 ```
 
