@@ -130,7 +130,7 @@ Of course, you can run this with all arguments at once too:
 ```bash
 ./generate_answers.sh
 --questions_dirpath "<path_to_questions_folder>"
---docs_path "<path_to_csv_file>"
+--docs_path "<path_to_csv_file>" # default is data/docs.csv, so if it's your own data, be sure to change this!
 --qa_path "<path_to_csv_file>"
 --question_system_prompt "You are an expert."
 --question_prompt_suffix "Write answer:"
