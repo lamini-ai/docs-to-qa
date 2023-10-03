@@ -38,7 +38,7 @@ tl;dr:
 To generate the questions, run the following:
 
 ```bash
-./generate_questions.sh
+./generate_questions.sh \
 --docs_path "data/docs_small.csv" # <path_to_csv_file>
 ```
 
@@ -59,8 +59,8 @@ Don't like the generated questions? Have a specific style you’d like the LLM t
 You can prompt-engineer the question-generating LLM to better match the types of questions that you expect your users to ask. Experiment with prompts and override our default prompts, as follows:
 
 ```bash
-./generate_questions.sh
---question_system_prompt "You are an expert."
+./generate_questions.sh \
+--question_system_prompt "You are an expert." \
 --question_prompt_suffix "Write a question:"
 ```
 
@@ -72,7 +72,7 @@ We've included a couple default datasets in the [`data`](/data) folder: [`data/d
 Set the dataset using the following. Try using your own!
 
 ```bash
-./generate_questions.sh
+./generate_questions.sh \
 --docs_path "data/docs_small.csv" # <path_to_csv_file>
 ```
 
@@ -84,7 +84,7 @@ One way to give the LLM a flavor of the type of questions you'd like, beyond jus
 You can pass in a CSV file here, with `Question` as a column name:
 
 ```bash
-./generate_questions.sh
+./generate_questions.sh \
 --qa_path "<path_to_csv_file>"
 ```
 
@@ -96,7 +96,7 @@ Now that you’ve generated questions, the LLM needs answers! You can apply a si
 Go ahead and generate answers to your questions with the below. Just pass in the questions folder you would like to read from (this folder includes both the generated questions you had previously and the question prompt you used to get it). Of course, you can also edit the questions directly if you have other methods of improving them.
 
 ```bash
-./generate_answers.sh
+./generate_answers.sh \
 --questions_dirpath "outputs/questions_20231002_005304" # <path_to_saved_questions_folder>
 ```
 
@@ -120,20 +120,20 @@ By default, this will also save the answers generated to the [`outputs/`](/outpu
 Just like question generation, you can set your documents path, prompts, etc.:
 
 ```bash
-./generate_answers.sh
---questions_dirpath "<path_to_questions_folder>"
---question_system_prompt "You are an expert."
+./generate_answers.sh \
+--questions_dirpath "<path_to_questions_folder>" \
+--question_system_prompt "You are an expert." \
 --question_prompt_suffix "Write an answer:"
 ```
 
 Of course, you can run this with all arguments at once too:
 
 ```bash
-./generate_answers.sh
---questions_dirpath "<path_to_questions_folder>"
---docs_path "<path_to_csv_file>" # default is data/docs.csv, so if it's your own data, be sure to change this!
---qa_path "<path_to_csv_file>"
---question_system_prompt "You are an expert."
+./generate_answers.sh \
+--questions_dirpath "<path_to_questions_folder>" \
+--docs_path "<path_to_csv_file>" \
+--qa_path "<path_to_csv_file>" \
+--question_system_prompt "You are an expert." \
 --question_prompt_suffix "Write answer:"
 ```
 
@@ -142,9 +142,9 @@ Of course, you can run this with all arguments at once too:
 Now that you have question-answer pairs, it’s time to finetune (a form of LLM training)! You can run the below:
 
 ```bash
-./train.sh
---qa_dirpath "<path_to_questions_and_answers_folder>"
---docs_path "<path_to_csv_file>" # default is data/docs.csv, so if it's your own data, be sure to change this!
+./train.sh \
+--qa_dirpath "<path_to_questions_and_answers_folder>" \
+--docs_path "<path_to_csv_file>"
 ```
 
 You will see a model ID printed and also added to your finetuning [`Train` dashboard](https://app.lamini.ai/train), where you can track the job's status:
@@ -155,16 +155,16 @@ Model ID: 0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9
 You can also set your model to be shareable with all your colleagues and friends, by passing in `is_public` as True:
 
 ```bash
-./train.sh
---qa_dirpath "<path_to_questions_and_answers_folder>"
+./train.sh \
+--qa_dirpath "<path_to_questions_and_answers_folder>" \
 --is_public True
 ```
 
 Lastly, you can run the finetuned Q&A LLM on a new question:
 
 ```bash
-./run.sh
---question "When did H. CON. RES. 1 pass?"
+./run.sh \
+--question "When did H. CON. RES. 1 pass?" \
 --model_name "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9" # <model_name>
 ```
 
