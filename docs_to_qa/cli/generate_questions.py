@@ -1,4 +1,4 @@
-from llama import run_prompt_engineer_questions
+from llama.docs_to_qa.docs_to_qa import run_prompt_engineer_questions
 import argparse
 
 def parse_args():
