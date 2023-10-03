@@ -39,6 +39,7 @@ To generate the questions, run the following:
 
 ```bash
 ./generate_questions.sh
+--docs_path "data/docs_small.csv" # <path_to_csv_file>
 ```
 
 All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run [`generate_questions.sh`](/generate_questions.sh), you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
