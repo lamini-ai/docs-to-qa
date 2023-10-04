@@ -14,8 +14,8 @@ Here's an excerpt of what those documents in the data look like. They are not we
 ```
 
 From these, you can get a finetuned LLM that can intelligently answer questions about it! The LLM is customized to the types of questions you expect to ask it, and the kinds of answers you expect it to give. Give it a spin on an LLM that we finetuned for you on this data:
-```
-./run.sh
+```bash
+./run.sh \
 --question "When did H. CON. RES. 1 pass?" \
 --model_name "0eb43acdd0d81f06647dfe81a1033740255c6138cc8e0a816f1308e3c784cbb9"
 ```
@@ -28,7 +28,7 @@ Here is the LLM's answer:
 
 Below, we share how to use this library on your own data!
 
-tl;dr:
+TL;DR:
 1. Input a set of raw documents, i.e. just strings, a CSV, etc. We have an example with [public U.S. Bills data](https://huggingface.co/datasets/hyperdemocracy/us-congress-bills).
 2. Generate questions & answers about your raw documents, by just prompt-engineering an LLM.
 3. Finetune a custom Q&A LLM on this data - now it can chat over your documents, run it on new questions!
@@ -97,7 +97,7 @@ Go ahead and generate answers to your questions with the below. Just pass in the
 
 ```bash
 ./generate_answers.sh \
---questions_dirpath "outputs/questions_20231002_005304" # <path_to_saved_questions_folder>
+--questions_dirpath "outputs/questions_small_20231002_005304" # <path_to_saved_questions_folder>
 ```
 
 Sample output:
@@ -143,9 +143,11 @@ Now that you have question-answer pairs, it’s time to finetune (a form of LLM 
 
 ```bash
 ./train.sh \
---qa_dirpath "<path_to_questions_and_answers_folder>" \
---docs_path "<path_to_file>"
+--qa_dirpath outputs/qa_small_20230928_224709 \
+--docs_path data/docs_small.csv 
 ```
+
+The `qa_dirpath` should include the "<path_to_questions_and_answers_folder>".
 
 You will see a model ID printed and also added to your finetuning [`Train` dashboard](https://app.lamini.ai/train), where you can track the job's status:
 ```
