@@ -4,7 +4,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--questions_dirpath", default=None)
-    parser.add_argument("--docs_path", default="data/docs.csv")
+    parser.add_argument("--docs_path", default=None)
     parser.add_argument("--qa_path", default=None)
     parser.add_argument("--model_name", default=None)
     parser.add_argument("--answer_system_prompt", default=None)
