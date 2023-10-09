@@ -1,4 +1,4 @@
-from llama.docs_to_qa.docs_to_qa import run_model
+from llama import run_model
 import argparse
 
 def parse_args():

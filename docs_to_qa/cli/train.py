@@ -1,4 +1,4 @@
-from llama.docs_to_qa.docs_to_qa import finetune_qa
+from llama import finetune_qa
 import argparse
 
 def parse_args():

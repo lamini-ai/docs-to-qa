@@ -122,8 +122,8 @@ Just like question generation, you can set your documents path, prompts, etc.:
 ```bash
 ./generate_answers.sh \
 --questions_dirpath "<path_to_questions_folder>" \
---question_system_prompt "You are an expert." \
---question_prompt_suffix "Write an answer:"
+--answer_system_prompt "You are an expert." \
+--answer_prompt_suffix "Write an answer:"
 ```
 
 Of course, you can run this with all arguments at once too:
@@ -133,8 +133,8 @@ Of course, you can run this with all arguments at once too:
 --questions_dirpath "<path_to_questions_folder>" \
 --docs_path "<path_to_file>" \
 --qa_path "<path_to_csv_file>" \
---question_system_prompt "You are an expert." \
---question_prompt_suffix "Write answer:"
+--answer_system_prompt "You are an expert." \
+--answer_prompt_suffix "Write answer:"
 ```
 
 ## 3. Finetune Your Question-Answer LLM
