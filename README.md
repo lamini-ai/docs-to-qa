@@ -39,7 +39,7 @@ To generate the questions, run the following:
 
 ```bash
 ./generate_questions.sh \
---docs_path "data/docs_small.csv" # <path_to_file>
+--docs_dirpath "data_small" # <path_to_docs_directory>
 ```
 
 All you need to do is prompt-engineer an LLM to generate questions, then answers, for you. When you run [`generate_questions.sh`](/generate_questions.sh), you can see the prompt to generate questions (`SYSTEM PROMPT`) and the questions about a docs snippet (`GENERATED QUESTION`), here a list of questions:
@@ -67,13 +67,13 @@ You can prompt-engineer the question-generating LLM to better match the types of
 The `question_system_prompt` is the persona that you tell the LLM to assume when generating questions. The `question_prompt_suffix` can be optionally used as more context to the LLM after it reads your documents, just before it generates the questions.
 
 ### Your own data
-We've included a couple default datasets in the [`data`](/data) folder: [`data/docs_small.csv`](data/docs_small.csv) with 1 examples and [`data/docs.csv`](data/docs.csv) with 100 examples for you to experiment with. 
+We've included a couple default datasets in the [`data_small`](/data_small) and [`data`](/data) folders: [`data_small/docs_small.csv`](data_small/docs_small.csv) with 1 example and [`data/docs.csv`](data/docs.csv) with 100 examples for you to experiment with. 
 
-Set the dataset using the following. Try using your own (we support csv, jsonl, and txt files)!
+Set the dataset using the following. Try using your own (we support csv, json, jsonl, txt, and html files)!
 
 ```bash
 ./generate_questions.sh \
---docs_path "data/docs_small.csv" # <path_to_file>
+--docs_dirpath "data_small" # <path_to_docs_directory>
 ```
 
 Of course, you can provide an arbitrary amount of text -- it will just take time for the LLM to process. We recommend starting small as you prompt-engineer, so iteration speed is fast. Then, expand that dataset, if you like what you see.
@@ -131,7 +131,7 @@ Of course, you can run this with all arguments at once too:
 ```bash
 ./generate_answers.sh \
 --questions_dirpath "<path_to_questions_folder>" \
---docs_path "<path_to_file>" \
+--docs_dirpath "<path_to_docs_directory>" \
 --qa_path "<path_to_csv_file>" \
 --answer_system_prompt "You are an expert." \
 --answer_prompt_suffix "Write answer:"
@@ -144,7 +144,7 @@ Now that you have question-answer pairs, it’s time to finetune (a form of LLM 
 ```bash
 ./train.sh \
 --qa_dirpath "<path_to_questions_and_answers_folder>" \
---docs_path "<path_to_file>"
+--docs_dirpath "<path_to_docs_directory>"
 ```
 
 You will see a model ID printed and also added to your finetuning [`Train` dashboard](https://app.lamini.ai/train), where you can track the job's status:

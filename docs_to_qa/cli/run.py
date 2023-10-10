@@ -5,6 +5,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", default=None)
     parser.add_argument("--question", default=None)
+    parser.add_argument("--docs_dirpath", default=None)
     parser.add_argument("--doc_id", default=None)
     parser.add_argument("--verbose", default=True)
     return vars(parser.parse_args())
@@ -20,6 +21,7 @@ def main():
     output = run_model(
         model_name=args["model_name"],
         question=args["question"],
+        docs_dirpath=args["docs_dirpath"],
         doc_id=args["doc_id"],
         verbose=args["verbose"],
     )
