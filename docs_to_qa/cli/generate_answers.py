@@ -4,7 +4,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--questions_dirpath", default=None)
-    parser.add_argument("--docs_dirpath", default=None)
+    parser.add_argument("--docs_path", default=None)
     parser.add_argument("--qa_path", default=None)
     parser.add_argument("--model_name", default=None)
     parser.add_argument("--answer_system_prompt", default=None)
@@ -22,7 +22,7 @@ def main():
     print("Generating answers for the questions provided...")
     answers = run_prompt_engineer_answers(
         args["questions_dirpath"],
-        docs_dirpath=args["docs_dirpath"],
+        docs_path=args["docs_path"],
         qa_path=args["qa_path"],
         model_name=args["model_name"],
         system_prompt=args["answer_system_prompt"],

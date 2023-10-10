@@ -3,7 +3,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--docs_dirpath", default="data_small")
+    parser.add_argument("--docs_path", default="data/docs_small.csv")
     parser.add_argument("--qa_path", default=None)
     parser.add_argument("--model_name", default=None)
     parser.add_argument("--question_system_prompt", default=None)
@@ -22,7 +22,7 @@ def main():
     print("Generating questions...")
     # generate questions, display the first couple
     questions = run_prompt_engineer_questions(
-        docs_dirpath=args["docs_dirpath"],
+        docs_path=args["docs_path"],
         qa_path=args["qa_path"],
         model_name=args["model_name"],
         system_prompt=args["question_system_prompt"],
