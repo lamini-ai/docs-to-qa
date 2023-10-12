@@ -69,7 +69,7 @@ The `question_system_prompt` is the persona that you tell the LLM to assume when
 ### Your own data
 We've included a couple default datasets in the [`data_small`](/data_small) and [`data`](/data) folders: [`data_small/docs_small.csv`](data_small/docs_small.csv) with 1 example and [`data/docs.csv`](data/docs.csv) with 100 examples for you to experiment with. 
 
-Set the dataset using the following. Try using your own (we support csv, json, jsonl, txt, and html files)!
+Set the dataset using the following. Try using your own (be sure to place it in the docs_to_qa directory; we support csv, json, jsonl, txt, and html files)!
 
 ```bash
 ./generate_questions.sh \
